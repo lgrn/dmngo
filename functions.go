@@ -46,17 +46,44 @@ func generateCombinations(length int) []string {
 	return combinations
 }
 
-func checkDomain(domain string, sleep int) bool {
-	result, err := whois.Whois(domain)
+func checkDomain(domain string, sleep int, debugFlag **bool) bool {
+	whoisResult, err := whois.Whois(domain)
 	if err == nil {
-		_, err := whoisparser.Parse(result)
+		parseResult, err := whoisparser.Parse(whoisResult)
 		// no error from whoisparser likely means it's taken
 		if err == nil {
-			fmt.Println("..." + domain + " is likely taken.")
+			//fmt.Println("..." + domain + " is likely taken.")
+			fmt.Printf("TAKEN: %s\tuntil: %s\n",
+				domain,
+				//parseResult.Domain.Status,
+				//registrantName,
+				parseResult.Domain.ExpirationDate)
+			if **debugFlag {
+				// Print the domain status
+				fmt.Println(parseResult.Domain.Status)
+
+				// Print the domain created date
+				fmt.Println(parseResult.Domain.CreatedDate)
+
+				// Print the domain expiration date
+				fmt.Println(parseResult.Domain.ExpirationDate)
+
+				// Print the registrar name
+				fmt.Println(parseResult.Registrar.Name)
+
+				// Print the registrant name
+				fmt.Println(parseResult.Registrant.Name)
+
+				// Print the registrant email address
+				fmt.Println(parseResult.Registrant.Email)
+
+			}
 			time.Sleep(5 * time.Second)
 			return false
 		} else {
 			fmt.Println(domain, "MAY be free. adding to domains.txt")
+			fmtError := fmt.Errorf("additional context: %w", err)
+			fmt.Println(fmtError)
 			file, _ := os.OpenFile("domains.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			file.WriteString(domain + "\n")
 			file.Close()
@@ -65,8 +92,23 @@ func checkDomain(domain string, sleep int) bool {
 		}
 
 	} else {
-		// error from whois might mean rate limiting. wait longer.
-		fmt.Println("WHOIS ERROR. WAITING 3X AS LONG: ", err)
+		parseResult, err := whoisparser.Parse(whoisResult)
+		if err == nil {
+			// parse was OK
+			// we did get an error from the whois though, which might
+			// mean rate limiting. wait longer.
+			fmt.Println("WHOIS ERROR. WAITING 3X AS LONG")
+			fmt.Printf("ERROR: %s\t status: %s\n",
+				domain,
+				parseResult.Domain.Status,
+			//registrantName,
+			//parseResult.Domain.ExpirationDate
+			)
+			fmt.Println(fmt.Errorf("additional context: %w", err))
+		} else {
+			fmt.Println("PARSE ERROR")
+			fmt.Println(fmt.Errorf("additional context: %w", err))
+		}
 		time.Sleep(time.Duration(sleep) * 3 * time.Second)
 		return false
 	}
