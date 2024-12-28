@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/likexian/whois"
 	whoisparser "github.com/likexian/whois-parser"
@@ -114,6 +116,17 @@ func checkDomain(domain string, sleep int, debugFlag **bool) bool {
 	}
 }
 
+func toLowercaseASCII(s string) string {
+	var builder strings.Builder
+	for _, r := range s {
+		// Convert to lowercase and ensure it's an ASCII letter
+		if unicode.IsLetter(r) && r <= 'z' {
+			builder.WriteRune(unicode.ToLower(r))
+		}
+	}
+	return builder.String()
+}
+
 func parseFile(input string) []string {
 	filePath := input
 	file, err := os.Open(filePath)
@@ -126,8 +139,13 @@ func parseFile(input string) []string {
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		retval = append(retval, scanner.Text())
+		cleanLine := toLowercaseASCII(scanner.Text())
+		retval = append(retval, cleanLine)
 	}
+
+	rand.Shuffle(len(retval), func(i, j int) {
+		retval[i], retval[j] = retval[j], retval[i]
+	})
 
 	return retval
 }
